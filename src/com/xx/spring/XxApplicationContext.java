@@ -10,7 +10,7 @@ public class XxApplicationContext {
 
     public XxApplicationContext(Class configClass) {
         this.configClass = configClass;
-
+1
         Test test = new Test();
         //扫描
         //判断给得这个类有没有ComponentScan注解
