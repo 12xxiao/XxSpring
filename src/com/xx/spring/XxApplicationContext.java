@@ -3,17 +3,25 @@ package com.xx.spring;
 import com.xx.service.Test;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class XxApplicationContext {
     private Class configClass;
 
-    public XxApplicationContext(Class configClass) {
+    //存储 Bean 的元信息（BeanDefinition），键是 Bean 的名称，值是 Bean 的定义信息。
+    private ConcurrentHashMap<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>();
+    //单例Bean的缓存池（单例池）
+    private ConcurrentHashMap<String, Object> singletonObjects = new ConcurrentHashMap<>();
+
+    public XxApplicationContext(Class configClass) throws UnsupportedEncodingException {
         this.configClass = configClass;
 
         Test test = new Test();
-        //扫描
-        //判断给得这个类有没有ComponentScan注解
+
+        //扫描，发现BeanDefinition对象，并存到beanDefinitionMap
+        //判断给得这个类有没有@ComponentScan注解
         if (configClass.isAnnotationPresent(ComponentScan.class)) {
             ComponentScan componentScanAnnotation = (ComponentScan) configClass.getAnnotation(ComponentScan.class);
 
@@ -43,21 +51,71 @@ public class XxApplicationContext {
                         try {
                             Class<?> clazz = classLoader.loadClass(className);
                             if (clazz.isAnnotationPresent(Component.class)) {
-                                // Bean
+
+                                Component component = clazz.getAnnotation(Component.class);
+                                String beanName = component.value();
+
+                                //有Component注解，是一个Bean
+                                //生成BeanDefinition对象
+                                BeanDefinition beanDefinition = new BeanDefinition();
+                                beanDefinition.setType(clazz);//Bean的类型
+
+                                if (clazz.isAnnotationPresent(Scope.class)) {
+                                    Scope scopeAnnotation = clazz.getAnnotation(Scope.class);//看看Scope注解里面定义了什么值
+                                    beanDefinition.setScope(scopeAnnotation.value());
+                                } else {
+                                    beanDefinition.setScope("singleton");//Bean的作用域
+                                }
+
+                                beanDefinitionMap.put(beanName, beanDefinition);
+
                             }
                         } catch (ClassNotFoundException e) {
                             throw new RuntimeException(e);
                         }
-
-
                     }
                 }
 
             }
         }
+
+        //实例化单例Bean
+        for (String beanName : beanDefinitionMap.keySet()) {
+            BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+            if (beanDefinition.getScope().equals("singleton")) {
+                Object bean = createBean(beanName, beanDefinition);
+                singletonObjects.put(beanName, bean);//将单例Bean存到map里面
+            }
+        }
+    }
+
+    private Object createBean(String beanName, BeanDefinition beanDefinition) {
+
     }
 
     public Object getBean(String beanName) {
-        return null;
+        //根据名字beanName，找到那个类
+        //Bean有单例和多例，根据名字，判断是单例还是多例
+        //如果是单例，从某个缓存池中去拿
+        //如果是多例，去新创建一个
+
+        BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
+
+        if (beanDefinition == null) {
+            throw new NullPointerException();
+        } else {
+            String scope = beanDefinition.getScope();
+            if (scope.equals("singleton")) {
+                Object bean = singletonObjects.get(beanName);
+                if (bean == null) {
+                    Object o = createBean(beanName, beanDefinition);
+                    singletonObjects.put(beanName, o);
+                }
+                return bean;
+            } else {
+                //多例
+                return createBean(beanName, beanDefinition);
+            }
+        }
     }
 }
