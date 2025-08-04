@@ -4,6 +4,7 @@ import com.xx.service.Test;
 
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -15,7 +16,7 @@ public class XxApplicationContext {
     //单例Bean的缓存池（单例池）
     private ConcurrentHashMap<String, Object> singletonObjects = new ConcurrentHashMap<>();
 
-    public XxApplicationContext(Class configClass) throws UnsupportedEncodingException {
+    public XxApplicationContext(Class configClass) {
         this.configClass = configClass;
 
         Test test = new Test();
@@ -90,6 +91,24 @@ public class XxApplicationContext {
     }
 
     private Object createBean(String beanName, BeanDefinition beanDefinition) {
+
+        //创建对象需要知道是哪个类
+        Class clazz = beanDefinition.getType();
+
+        try {
+            Object instance = clazz.getConstructor().newInstance();
+
+            return instance;
+
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        }
 
     }
 
