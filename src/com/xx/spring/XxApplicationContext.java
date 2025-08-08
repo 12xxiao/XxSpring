@@ -2,8 +2,10 @@ package com.xx.spring;
 
 import com.xx.service.Test;
 
+import java.beans.Introspector;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.concurrent.ConcurrentHashMap;
@@ -48,13 +50,17 @@ public class XxApplicationContext {
                         //判断一个类是不是一个bean：上面有没有Component注解，用反射
                         //用反射需要拿到Class对象
 
-                        System.out.println(className);
                         try {
                             Class<?> clazz = classLoader.loadClass(className);
                             if (clazz.isAnnotationPresent(Component.class)) {
 
                                 Component component = clazz.getAnnotation(Component.class);
                                 String beanName = component.value();
+
+//                                System.out.println("s" + clazz.getSimpleName());
+                                if (beanName.equals("")) {
+                                    beanName = Introspector.decapitalize(clazz.getSimpleName());//spring里面默认情况下的Bean的名字生成器
+                                }
 
                                 //有Component注解，是一个Bean
                                 //生成BeanDefinition对象
@@ -97,6 +103,16 @@ public class XxApplicationContext {
 
         try {
             Object instance = clazz.getConstructor().newInstance();
+
+            //依赖注入
+            //并不需要给所有属性赋值，只需要给加了@autowired的赋值
+            //先拿到当前类的所有属性
+            for (Field f : clazz.getDeclaredFields()) {
+                if (f.isAnnotationPresent(Autowired.class)) {
+                    f.setAccessible(true);//增加访问权限
+                    f.set(instance, getBean(f.getName()));
+                }
+            }
 
             return instance;
 
