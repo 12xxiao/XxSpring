@@ -114,6 +114,11 @@ public class XxApplicationContext {
                 }
             }
 
+            //Aware
+            if (instance instanceof BeanNameAware) {
+                ((BeanNameAware) instance).setBeanName(beanName);
+            }
+
             return instance;
 
         } catch (InstantiationException e) {
