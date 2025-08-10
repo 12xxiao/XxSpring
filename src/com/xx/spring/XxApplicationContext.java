@@ -116,8 +116,18 @@ public class XxApplicationContext {
 
             //Aware
             if (instance instanceof BeanNameAware) {
+
+                //spring告诉某个东西，给你当前这个Bean
                 ((BeanNameAware) instance).setBeanName(beanName);
             }
+
+            // 初始化
+            if (instance instanceof InitializingBean) {
+                //调用当前Bean的afterPropertiesSet方法
+                ((InitializingBean) instance).afterPropertiesSet();
+            }
+
+            //初始化后 Aop
 
             return instance;
 
