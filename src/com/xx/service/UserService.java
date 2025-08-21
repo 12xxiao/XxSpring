@@ -14,6 +14,7 @@ public class UserService implements BeanNameAware, InitializingBean {
         System.out.println(orderService);
     }
 
+
     //Spring会来调用这个方法
     @Override
     public void setBeanName(String beanName) {
@@ -22,6 +23,5 @@ public class UserService implements BeanNameAware, InitializingBean {
 
     @Override
     public void afterPropertiesSet() {
-        System.out.println("xxxsssss");
     }
 }

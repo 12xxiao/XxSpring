@@ -8,6 +8,8 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class XxApplicationContext {
@@ -17,6 +19,7 @@ public class XxApplicationContext {
     private ConcurrentHashMap<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>();
     //单例Bean的缓存池（单例池）
     private ConcurrentHashMap<String, Object> singletonObjects = new ConcurrentHashMap<>();
+    private ArrayList<BeanPostProcessor> beanPostProcessorsList = new ArrayList<>();
 
     public XxApplicationContext(Class configClass) {
         this.configClass = configClass;
@@ -34,7 +37,7 @@ public class XxApplicationContext {
             path = path.replace(".", "/");//com/xx/service
 
             ClassLoader classLoader = XxApplicationContext.class.getClassLoader();//获得类加载器
-            URL resource = classLoader.getResource(path);
+            URL resource = classLoader.getResource(path);//file:/D:/IdeaProjects/XxSpring/out/production/XxSpring/com/xx/service
 
             File file = new File(resource.getFile());//File对象既可以表示一个文件，也可以表示一个目录
 
@@ -52,32 +55,50 @@ public class XxApplicationContext {
 
                         try {
                             Class<?> clazz = classLoader.loadClass(className);
+                            /**
+                             * 在spring容器启动的过程中间，会去检查当前指定这个包（service）下面当前定义的bean里面有没有某个bean的类型是BeanPostProcessor
+                             * 如果有，额外的提出来，把它Bean对象创建出来，把它加到beanPostProcessorList里面
+                             */
                             if (clazz.isAnnotationPresent(Component.class)) {
+                                //这个类（clazz）是否实现继承了BeanPostProcessor
+                                //不用instanceof：针对对象去判断是不是某个类型
+                                if (BeanPostProcessor.class.isAssignableFrom(clazz)) {
+                                    BeanPostProcessor instance = (BeanPostProcessor) clazz.newInstance();
+                                    beanPostProcessorsList.add(instance);
+                                }
+
 
                                 Component component = clazz.getAnnotation(Component.class);
                                 String beanName = component.value();
 
-//                                System.out.println("s" + clazz.getSimpleName());
                                 if (beanName.equals("")) {
-                                    beanName = Introspector.decapitalize(clazz.getSimpleName());//spring里面默认情况下的Bean的名字生成器
+                                    //spring里面默认情况下的Bean的名字生成器
+                                    beanName = Introspector.decapitalize(clazz.getSimpleName());
                                 }
 
                                 //有Component注解，是一个Bean
                                 //生成BeanDefinition对象
                                 BeanDefinition beanDefinition = new BeanDefinition();
-                                beanDefinition.setType(clazz);//Bean的类型
+                                //Bean的类型
+                                beanDefinition.setType(clazz);
 
                                 if (clazz.isAnnotationPresent(Scope.class)) {
-                                    Scope scopeAnnotation = clazz.getAnnotation(Scope.class);//看看Scope注解里面定义了什么值
+                                    //看看Scope注解里面定义了什么值
+                                    Scope scopeAnnotation = clazz.getAnnotation(Scope.class);
                                     beanDefinition.setScope(scopeAnnotation.value());
                                 } else {
-                                    beanDefinition.setScope("singleton");//Bean的作用域
+                                    //Bean的作用域
+                                    beanDefinition.setScope("singleton");
                                 }
 
                                 beanDefinitionMap.put(beanName, beanDefinition);
 
                             }
                         } catch (ClassNotFoundException e) {
+                            throw new RuntimeException(e);
+                        } catch (InstantiationException e) {
+                            throw new RuntimeException(e);
+                        } catch (IllegalAccessException e) {
                             throw new RuntimeException(e);
                         }
                     }
@@ -121,13 +142,21 @@ public class XxApplicationContext {
                 ((BeanNameAware) instance).setBeanName(beanName);
             }
 
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorsList) {
+                beanPostProcessor.postProcessBeforeInitialization(beanName, instance);
+            }
+
             // 初始化
             if (instance instanceof InitializingBean) {
                 //调用当前Bean的afterPropertiesSet方法
                 ((InitializingBean) instance).afterPropertiesSet();
             }
 
-            //初始化后 Aop
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorsList) {
+                beanPostProcessor.postProcessAfterInitialization(beanName, instance);
+            }
+
+            //BeanPostProcessor 初始化后 Aop
 
             return instance;
 

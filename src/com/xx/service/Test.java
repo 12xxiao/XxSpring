@@ -11,7 +11,7 @@ public class Test {
         XxApplicationContext applicationContext = new XxApplicationContext(AppConfig.class);
 
 //        UserService userService = (UserService) applicationContext.getBean("userService");
-        System.out.println(applicationContext.getBean("userService"));
+//        System.out.println(applicationContext.getBean("userService"));
 //        System.out.println(applicationContext.getBean("userService"));
 //        System.out.println(applicationContext.getBean("userService"));
 //        System.out.println(applicationContext.getBean("orderService"));
